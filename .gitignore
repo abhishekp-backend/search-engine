@@ -1,33 +1,74 @@
-HELP.md
+# ===========================================
+# Maven
+# ===========================================
 target/
-.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
+!.mvn/wrapper/maven-wrapper.jar
 
-### STS ###
+# Maven Wrapper
+.mvn/wrapper/maven-wrapper.jar
+
+# ===========================================
+# IntelliJ IDEA
+# ===========================================
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# ===========================================
+# Eclipse / STS
+# ===========================================
 .apt_generated
 .classpath
 .factorypath
 .project
-.settings
+.settings/
 .springBeans
 .sts4-cache
 
-### IntelliJ IDEA ###
-.idea
-*.iws
-*.iml
-*.ipr
+# ===========================================
+# VS Code
+# ===========================================
+.vscode/
 
-### NetBeans ###
+# ===========================================
+# NetBeans
+# ===========================================
 /nbproject/private/
 /nbbuild/
 /dist/
 /nbdist/
 /.nb-gradle/
 build/
-!**/src/main/**/build/
-!**/src/test/**/build/
 
-### VS Code ###
-.vscode/
+# ===========================================
+# Logs
+# ===========================================
+logs/
+*.log
+
+# ===========================================
+# OS Files
+# ===========================================
+.DS_Store
+Thumbs.db
+
+# ===========================================
+# Environment Variables
+# ===========================================
+.env
+.env.*
+!.env.example
+
+# ===========================================
+# Temporary Files
+# ===========================================
+*.tmp
+*.swp
+
+# ===========================================
+# Generated Files
+# ===========================================
+hs_err_pid*
+replay_pid*
