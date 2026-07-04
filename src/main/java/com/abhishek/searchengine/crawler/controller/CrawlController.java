@@ -22,4 +22,7 @@ public class CrawlController {
         return ResponseEntity.ok(crawlService.crawl(request.url()));
     }
 
+//    @PostMapping("/crawl/links")
+//    public ResponseEntity<> crawledLinks(@RequestBody @Valid CrawlRequest)
+
 }
