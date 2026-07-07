@@ -3,6 +3,8 @@ package com.abhishek.searchengine.crawler.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 
@@ -10,6 +12,7 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @Table(name = "crawled_pages")
+@EntityListeners(AuditingEntityListener.class)
 public class CrawledPage {
 
     @Id
@@ -27,13 +30,9 @@ public class CrawledPage {
     private String html;
 
     @Column(nullable = false)
-    private Integer status;
+    private Integer statusCode;
 
     @Column(nullable = false)
+    @CreatedDate
     private LocalDateTime crawledAt;
-
-    @PrePersist
-    public void onCreate() {
-        this.crawledAt = LocalDateTime.now();
-    }
 }

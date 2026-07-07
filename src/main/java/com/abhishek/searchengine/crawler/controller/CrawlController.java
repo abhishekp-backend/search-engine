@@ -19,7 +19,7 @@ public class CrawlController {
 
     @PostMapping("/crawl")
     public ResponseEntity<CrawlResponse> crawl(@RequestBody @Valid CrawlRequest request) throws IOException {
-        return ResponseEntity.ok(crawlService.crawl(request.url()));
+        return ResponseEntity.ok(crawlService.crawl(request));
     }
 
 //    @PostMapping("/crawl/links")

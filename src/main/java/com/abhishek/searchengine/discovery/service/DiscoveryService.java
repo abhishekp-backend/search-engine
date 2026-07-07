@@ -1,7 +1,7 @@
 package com.abhishek.searchengine.discovery.service;
 
-import com.abhishek.searchengine.discovery.entity.Page;
-import lombok.NoArgsConstructor;
+import com.abhishek.searchengine.discovery.repository.DiscoveredUrlRepository;
+import lombok.AllArgsConstructor;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.jsoup.nodes.Document;
@@ -12,9 +12,12 @@ import java.util.HashSet;
 import java.util.Set;
 
 @Service
-@NoArgsConstructor
+@AllArgsConstructor
 @RequestMapping("/")
 public class DiscoveryService {
+
+    private final DiscoveredUrlRepository discoveredUrlRepository;
+
     public Set<String> extractLinks(Document document) {
 
         Set<String> links = new HashSet<>();
