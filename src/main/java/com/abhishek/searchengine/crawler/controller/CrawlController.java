@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
 
 @RestController
 @RequestMapping("/api")
@@ -18,7 +19,7 @@ public class CrawlController {
     private final CrawlService crawlService;
 
     @PostMapping("/crawl")
-    public ResponseEntity<CrawlResponse> crawl(@RequestBody @Valid CrawlRequest request) throws IOException {
+    public ResponseEntity<CrawlResponse> crawl(@RequestBody @Valid CrawlRequest request) throws URISyntaxException {
         return ResponseEntity.ok(crawlService.crawl(request));
     }
 

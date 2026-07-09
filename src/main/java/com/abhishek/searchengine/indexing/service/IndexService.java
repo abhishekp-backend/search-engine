@@ -13,10 +13,12 @@ public class IndexService {
     private final TextProcessingPipeline textProcessingPipeline;
     private final InvertedIndexService invertedIndexService;
 
-    public void indexDocument(CrawledPage page) {
+    public int indexDocument(CrawledPage page) {
 
         List<String> tokens = textProcessingPipeline.process(page.getHtml());
 
         invertedIndexService.index(page.getId(), tokens);
+
+        return tokens.size();
     }
 }

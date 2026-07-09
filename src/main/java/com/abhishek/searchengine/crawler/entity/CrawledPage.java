@@ -7,6 +7,7 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Getter
@@ -16,8 +17,8 @@ import java.time.LocalDateTime;
 public class CrawledPage {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
     @Column(nullable = false, unique = true)
     private String url;
@@ -31,6 +32,8 @@ public class CrawledPage {
 
     @Column(nullable = false)
     private Integer statusCode;
+
+    private Integer totalTerms;
 
     @Column(nullable = false)
     @CreatedDate

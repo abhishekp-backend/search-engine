@@ -95,7 +95,10 @@ public class CrawlService {
 
                 crawledPageRepository.save(crawledPage);
 
-                indexService.indexDocument(crawledPage);
+                int totalTerms = indexService.indexDocument(crawledPage);
+
+                crawledPage.setTotalTerms(totalTerms);
+                crawledPageRepository.save(crawledPage);
 
                 Set<String> links = discoveryService.extractLinks(document);
 

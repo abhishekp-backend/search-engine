@@ -3,5 +3,8 @@ package com.abhishek.searchengine.crawler.repository;
 import com.abhishek.searchengine.crawler.entity.CrawledPage;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface CrawledPageRepository extends JpaRepository<CrawledPage, Long> {
+import java.util.List;
+import java.util.UUID;
+
+public interface CrawledPageRepository extends JpaRepository<CrawledPage, UUID> {
 }
