@@ -9,17 +9,26 @@ import java.util.Set;
 public class StopWordFilter {
 
     private static final Set<String> STOP_WORDS = Set.of(
-            "a",
-            "an",
-            "the",
-            "is",
-            "are",
-            "of",
-            "to",
-            "for",
-            "and",
-            "in",
-            "on"
+            "a", "an", "the",
+            "is", "are", "was", "were", "be", "been", "being",
+            "am",
+            "of", "to", "for", "from",
+            "and", "or", "but",
+            "in", "on", "at", "by", "with", "into", "over",
+            "as", "if", "than", "then",
+            "this", "that", "these", "those",
+            "it", "its",
+            "he", "she", "they", "them", "their",
+            "you", "your",
+            "we", "our",
+            "i", "me", "my",
+            "have", "has", "had",
+            "do", "does", "did",
+            "can", "could", "will", "would",
+            "shall", "should",
+            "may", "might",
+            "must",
+            "not"
     );
 
     public List<String> filter(List<String> tokens) {
