@@ -1,10 +1,9 @@
 package com.abhishek.searchengine.crawler.service;
 
 import com.abhishek.searchengine.crawler.config.CrawlerProperties;
-import com.abhishek.searchengine.crawler.dto.CrawlRequest;
-import com.abhishek.searchengine.crawler.dto.CrawlResponse;
 import com.abhishek.searchengine.crawler.dto.CrawlTask;
 import com.abhishek.searchengine.crawler.entity.CrawledPage;
+import com.abhishek.searchengine.crawler.messaging.CrawlProducer;
 import com.abhishek.searchengine.crawler.repository.CrawledPageRepository;
 import com.abhishek.searchengine.discovery.entity.DiscoveredUrl;
 import com.abhishek.searchengine.discovery.repository.DiscoveredUrlRepository;
@@ -19,9 +18,6 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.ArrayDeque;
-import java.util.HashSet;
-import java.util.Queue;
 import java.util.Set;
 
 @Slf4j
@@ -34,113 +30,93 @@ public class CrawlService {
     private final CrawledPageRepository crawledPageRepository;
     private final DiscoveredUrlRepository discoveredUrlRepository;
     private final IndexService indexService;
+    private final CrawlProducer crawlProducer;
 
-    public CrawlResponse crawl(CrawlRequest request) {
+    public void crawl(CrawlTask task) {
 
-        Queue<CrawlTask> frontier = new ArrayDeque<>();
+        if (task.depth() > crawlerProperties.maxDepth()) {
+            return;
+        }
 
-        // URLs that have already been queued
-        Set<String> discovered = new HashSet<>();
-
-        // URLs that have actually been crawled
-        Set<String> visited = new HashSet<>();
-
-        frontier.offer(new CrawlTask(request.url(), 0));
-        discovered.add(request.url());
-
-        URI seedUri = URI.create(request.url());
-        String allowedHost = seedUri.getHost();
-
-        while (!frontier.isEmpty()) {
-
-            CrawlTask task = frontier.poll();
+        try {
 
             URI taskUri = URI.create(task.url());
 
-            if (!allowedHost.equalsIgnoreCase(taskUri.getHost())) {
-                continue;
+            if (!task.allowedHost().equalsIgnoreCase(taskUri.getHost())) {
+                return;
             }
 
-            if (task.depth() > crawlerProperties.maxDepth()) {
-                continue;
+            // Skip if already crawled
+            if (crawledPageRepository.existsByUrl(task.url())) {
+                return;
             }
 
-            if (!visited.add(task.url())) {
-                continue;
+            Connection.Response response = Jsoup.connect(task.url())
+                    .userAgent(crawlerProperties.userAgent())
+                    .timeout(crawlerProperties.timeout())
+                    .execute();
+
+            if (response.statusCode() != 200) {
+                throw new IOException(
+                        "Unexpected HTTP status "
+                                + response.statusCode()
+                                + " while crawling "
+                                + task.url()
+                );
             }
 
-            try {
+            Document document = response.parse();
 
-                Connection.Response response = Jsoup.connect(task.url())
-                        .userAgent(crawlerProperties.userAgent())
-                        .timeout(crawlerProperties.timeout())
-                        .execute();
+            CrawledPage crawledPage = new CrawledPage();
+            crawledPage.setUrl(task.url());
+            crawledPage.setTitle(document.title());
+            crawledPage.setHtml(document.html());
+            crawledPage.setStatusCode(response.statusCode());
 
-                if (response.statusCode() != 200) {
-                    throw new IOException(
-                            "Unexpected HTTP status " +
-                                    response.statusCode() +
-                                    " while crawling " +
-                                    task.url()
-                    );
-                }
+            crawledPageRepository.save(crawledPage);
 
-                Document document = response.parse();
+            int totalTerms = indexService.indexDocument(crawledPage);
 
-                CrawledPage crawledPage = new CrawledPage();
-                crawledPage.setUrl(task.url());
-                crawledPage.setTitle(document.title());
-                crawledPage.setHtml(document.html());
-                crawledPage.setStatusCode(response.statusCode());
+            crawledPage.setTotalTerms(totalTerms);
+            crawledPageRepository.save(crawledPage);
 
-                crawledPageRepository.save(crawledPage);
+            Set<String> links = discoveryService.extractLinks(document);
 
-                int totalTerms = indexService.indexDocument(crawledPage);
+            for (String link : links) {
 
-                crawledPage.setTotalTerms(totalTerms);
-                crawledPageRepository.save(crawledPage);
+                try {
 
-                Set<String> links = discoveryService.extractLinks(document);
+                    URI linkUri = URI.create(link);
 
-                for (String link : links) {
-
-                    try {
-
-                        URI linkUri = URI.create(link);
-
-                        if (!allowedHost.equalsIgnoreCase(linkUri.getHost())) {
-                            continue;
-                        }
-
-                        if (discovered.add(link)) {
-
-                            DiscoveredUrl discoveredUrl = new DiscoveredUrl();
-                            discoveredUrl.setUrl(link);
-                            discoveredUrl.setSourcePage(crawledPage);
-
-                            discoveredUrlRepository.save(discoveredUrl);
-
-                            frontier.offer(
-                                    new CrawlTask(
-                                            link,
-                                            task.depth() + 1
-                                    )
-                            );
-                        }
-
-                    } catch (Exception ignored) {
-                        log.warn("Skipping malformed URL: {}", link);
+                    if (!task.allowedHost().equalsIgnoreCase(linkUri.getHost())) {
+                        continue;
                     }
+
+                    if (discoveredUrlRepository.existsByUrl(link)) {
+                        continue;
+                    }
+
+                    DiscoveredUrl discoveredUrl = new DiscoveredUrl();
+                    discoveredUrl.setUrl(link);
+                    discoveredUrl.setSourcePage(crawledPage);
+
+                    discoveredUrlRepository.save(discoveredUrl);
+
+                    crawlProducer.publish(
+                            new CrawlTask(
+                                    link,
+                                    task.depth() + 1,
+                                    task.allowedHost()
+                            )
+                    );
+
+                } catch (Exception ignored) {
+                    log.warn("Skipping malformed URL: {}", link);
                 }
-
-            } catch (Exception e) {
-                log.error("Failed to crawl {}", task.url(), e);
             }
-        }
 
-        return new CrawlResponse(
-                visited.size(),
-                "Crawl Completed"
-        );
+        } catch (Exception e) {
+            log.error("Failed to crawl {}", task.url(), e);
+        }
     }
 }
