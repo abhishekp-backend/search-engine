@@ -8,6 +8,7 @@ import com.abhishek.searchengine.crawler.repository.CrawledPageRepository;
 import com.abhishek.searchengine.discovery.entity.DiscoveredUrl;
 import com.abhishek.searchengine.discovery.repository.DiscoveredUrlRepository;
 import com.abhishek.searchengine.discovery.service.DiscoveryService;
+import com.abhishek.searchengine.indexing.semantic.service.SemanticIndexService;
 import com.abhishek.searchengine.indexing.service.IndexService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +32,7 @@ public class CrawlService {
     private final DiscoveredUrlRepository discoveredUrlRepository;
     private final IndexService indexService;
     private final CrawlProducer crawlProducer;
+    private final SemanticIndexService semanticIndexService;
 
     public void crawl(CrawlTask task) {
 
@@ -72,13 +74,15 @@ public class CrawlService {
             crawledPage.setTitle(document.title());
             crawledPage.setHtml(document.html());
             crawledPage.setStatusCode(response.statusCode());
+            crawledPage.setTotalTerms(0);
 
             crawledPageRepository.save(crawledPage);
 
             int totalTerms = indexService.indexDocument(crawledPage);
 
             crawledPage.setTotalTerms(totalTerms);
-            crawledPageRepository.save(crawledPage);
+            CrawledPage savedPage = crawledPageRepository.save(crawledPage);
+            semanticIndexService.index(savedPage);
 
             Set<String> links = discoveryService.extractLinks(document);
 

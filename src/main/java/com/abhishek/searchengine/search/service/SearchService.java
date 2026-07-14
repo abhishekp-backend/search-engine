@@ -4,6 +4,7 @@ import com.abhishek.searchengine.crawler.entity.CrawledPage;
 import com.abhishek.searchengine.crawler.repository.CrawledPageRepository;
 import com.abhishek.searchengine.indexing.entity.InvertedIndex;
 import com.abhishek.searchengine.indexing.repository.InvertedIndexRepository;
+import com.abhishek.searchengine.indexing.service.TextProcessingPipeline;
 import com.abhishek.searchengine.search.dto.SearchResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,7 +14,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -23,14 +23,15 @@ public class SearchService {
     private final InvertedIndexRepository invertedIndexRepository;
     private final CrawledPageRepository crawledPageRepository;
     private final RedisTemplate<String, List<SearchResponse>> redisTemplate;
+    private final TextProcessingPipeline textProcessingPipeline;
 
     public List<SearchResponse> search(String query) {
-        query = query.trim().toLowerCase(Locale.ROOT);
-        String key = "search:" + query.toLowerCase();
+
+        String originalQuery = query.trim();
+        String key = "search:" + originalQuery.toLowerCase(Locale.ROOT);
 
         try {
-            List<SearchResponse> cached =
-                    redisTemplate.opsForValue().get(key);
+            List<SearchResponse> cached = redisTemplate.opsForValue().get(key);
 
             if (cached != null) {
                 return cached;
@@ -39,42 +40,59 @@ public class SearchService {
             log.error(e.toString());
         }
 
-        int totalDocuments = Math.toIntExact(crawledPageRepository.count());
-        List<InvertedIndex> postings = invertedIndexRepository.findByTerm(query);
+        List<String> terms = textProcessingPipeline.process(originalQuery);
 
-        if (postings.isEmpty()) {
+        if (terms.isEmpty()) {
             return Collections.emptyList();
         }
 
-        int df = postings.size();
-        double idf = Math.log((double) totalDocuments / df);
-
-        List<UUID> documentIds = postings.stream()
-                .map(InvertedIndex::getDocumentId)
-                .toList();
-
-        List<CrawledPage> pages = crawledPageRepository.findAllById(documentIds);
-
-        Map<UUID, CrawledPage> pageMap = pages.stream()
-                .collect(Collectors.toMap(
-                        CrawledPage::getId,
-                        page -> page
-                ));
+        int totalDocuments = Math.toIntExact(crawledPageRepository.count());
 
         Map<UUID, Double> scores = new HashMap<>();
+        Map<UUID, CrawledPage> pageMap = new HashMap<>();
 
-        for (InvertedIndex posting: postings) {
-            CrawledPage page = pageMap.get(posting.getDocumentId());
+        for (String term : terms) {
 
-            if (page == null) {
+            List<InvertedIndex> postings = invertedIndexRepository.findByTerm(term);
+
+            if (postings.isEmpty()) {
                 continue;
             }
 
-            double tf = (double) posting.getTermFrequency() / page.getTotalTerms();
-            scores.put(posting.getDocumentId(), tf * idf);
+            int df = postings.size();
+            double idf = Math.log((double) totalDocuments / df);
+
+            List<UUID> ids = postings.stream()
+                    .map(InvertedIndex::getDocumentId)
+                    .toList();
+
+            List<CrawledPage> pages = crawledPageRepository.findAllById(ids);
+
+            for (CrawledPage page : pages) {
+                pageMap.putIfAbsent(page.getId(), page);
+            }
+
+            for (InvertedIndex posting : postings) {
+
+                CrawledPage page = pageMap.get(posting.getDocumentId());
+
+                if (page == null) {
+                    continue;
+                }
+
+                double tf = (double) posting.getTermFrequency() / page.getTotalTerms();
+
+                scores.merge(
+                        posting.getDocumentId(),
+                        tf * idf,
+                        Double::sum
+                );
+            }
         }
 
-        String finalQuery = query;
+        if (scores.isEmpty()) {
+            return Collections.emptyList();
+        }
 
         List<SearchResponse> results = scores.entrySet()
                 .stream()
@@ -88,7 +106,7 @@ public class SearchService {
                             page.getId(),
                             page.getTitle(),
                             page.getUrl(),
-                            createSnippet(page.getHtml(), finalQuery)
+                            createSnippet(page.getHtml(), originalQuery)
                     );
                 })
                 .toList();
@@ -112,7 +130,8 @@ public class SearchService {
         int index = content.toLowerCase().indexOf(query.toLowerCase());
 
         if (index == -1) {
-            return content.substring(0, 200);
+            if (content.length() > 200) return content.substring(0, 200);
+            else return content;
         }
 
         int start = Math.max(0, index - 80);

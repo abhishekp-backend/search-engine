@@ -33,6 +33,7 @@ public class CrawledPage {
     @Column(nullable = false)
     private Integer statusCode;
 
+    @Column(nullable = false)
     private Integer totalTerms;
 
     @Column(nullable = false)

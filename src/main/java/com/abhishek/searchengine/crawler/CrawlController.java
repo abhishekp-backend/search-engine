@@ -1,4 +1,4 @@
-package com.abhishek.searchengine.crawler.controller;
+package com.abhishek.searchengine.crawler;
 
 import com.abhishek.searchengine.crawler.dto.CrawlRequest;
 import com.abhishek.searchengine.crawler.dto.CrawlTask;

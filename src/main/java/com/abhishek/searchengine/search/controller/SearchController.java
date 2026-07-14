@@ -3,6 +3,7 @@ package com.abhishek.searchengine.search.controller;
 import com.abhishek.searchengine.search.dto.SearchRequest;
 import com.abhishek.searchengine.search.dto.SearchResponse;
 import com.abhishek.searchengine.search.service.SearchService;
+import com.abhishek.searchengine.search.vector.service.VectorSearchService;
 import lombok.AllArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +17,7 @@ import java.util.List;
 public class SearchController {
 
     private final SearchService searchService;
+    private final VectorSearchService vectorSearchService;
     private final RedisTemplate<String, String> redisTemplate;
 
     @GetMapping("/health")
@@ -32,5 +34,10 @@ public class SearchController {
     public String testRedis() {
         redisTemplate.opsForValue().set("test", "Hello Redis");
         return redisTemplate.opsForValue().get("test");
+    }
+
+    @PostMapping("/vectorSearch")
+    public ResponseEntity<List<SearchResponse>> searchVector(@RequestBody SearchRequest request) {
+        return ResponseEntity.ok(vectorSearchService.search(request.query()));
     }
 }
